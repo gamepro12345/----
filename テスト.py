@@ -24,7 +24,7 @@ def say(sender, massage):
             </script>
         """, height=0)
     now = datetime.now()
-    st.write(f"現在時刻: {now.strftime('%Y-%m-%d %H:%M:%S')}")
+    st.write(f"投稿日: {now.strftime('%Y-%m-%d %H:%M:%S')}")
     st.write(f"{sender}さんから{massage}と送られました。")
 
 say("ミスター世間クレーマー", "円安が収まらない。")
