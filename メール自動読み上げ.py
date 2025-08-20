@@ -1,7 +1,7 @@
 import streamlit as st
 from datetime import datetime
 
-st.title("メール自動読み上げアプリ")
+st.title("メール自動読み上げ")
 
 # 5秒ごとに自動リロード（JavaScriptで実現）
 st.components.v1.html("""
@@ -27,4 +27,4 @@ def say(sender, massage):
     st.write(f"投稿日: {now.strftime('%Y-%m-%d %H:%M:%S')}")
     st.write(f"{sender}さんから{massage}と送られました。")
 
-say("ミスター世間クレーマー", "円安が収まらない。")
+say("NHK", "NNNNNNNNHHHHHHHHHKKKKKKKKKK")
