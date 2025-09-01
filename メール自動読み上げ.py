@@ -6,8 +6,8 @@ from email.header import decode_header
 
 st.title("メール自動読み上げアプリ")
 
-gmail_user = "kagawaken1@gmail.com"
-gmail_pass = "xaon hvbt wepp vmjz"
+gmail_user = st.text_area("メールアドレスを入力してください")
+gmail_pass = st.text_area("メールアドレスのアプリパスワードを入力してください")
 def fetch_latest_mail(user, password):
     try:
         mail = imaplib.IMAP4_SSL('imap.gmail.com')
