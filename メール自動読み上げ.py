@@ -13,7 +13,6 @@ def fetch_latest_mail(user, password):
         mail = imaplib.IMAP4_SSL('imap.gmail.com')
         mail.login(user, password)
         mail.select('inbox')
-        # プロモーションカテゴリのみ検索
         result, data = mail.search(None, 'X-GM-RAW', 'category:promotions')
         mail_ids = data[0].split()
         if not mail_ids:
@@ -42,30 +41,24 @@ def fetch_latest_mail(user, password):
         st.error(f"メール取得エラー: {e}")
         return None, None
 
-def say(sender, massage):
+def say(subject, massage):
     if massage:
-        message = f"{sender}さんから{massage}と送られました。"
-        # ページ表示時に自動で読み上げ
+        sender_message = f"{subject}{massage}と送られました。"
         st.components.v1.html(f"""
             <script>
-                var msg = new SpeechSynthesisUtterance("{message}");
+                var msg = new SpeechSynthesisUtterance("{sender_message}");
                 window.speechSynthesis.speak(msg);
             </script>
         """, height=0)
     now = datetime.now()
     st.write(f"投稿日: {now.strftime('%Y-%m-%d %H:%M:%S')}")
-    st.write(f"{sender}さんから{massage}と送られました。")
-
+    st.write(f"{subject}さんから{massage}と送られました。")
 
 
 if gmail_user and gmail_pass:
     subject, body = fetch_latest_mail(gmail_user, gmail_pass)
     if subject is not None:
-        # 本文が「広告」だけの場合のみ表示
-        if body.strip() == "広告":
-            st.write("広告")
-        else:
-            say(subject, body)
+        say(subject, body)
     else:
         st.write("まだメールが届いていません。")
 else:
