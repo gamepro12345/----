@@ -17,10 +17,7 @@ st.title("メール自動読み上げアプリ")
  
 
 gmail_user = st.text_area("メールアドレスを入力してください")
-
-gmail_pass = st.text_area("メールアドレスのアプリパスワードを入力してください", type="password")
-
- 
+gmail_pass = st.text_input("メールアドレスのアプリパスワードを入力してください", type="password")
 
 def _decode_mime(s):
 
