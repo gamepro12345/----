@@ -5,6 +5,12 @@ import email
 from email.header import decode_header, make_header
 import quopri, base64, re, json
 
+
+def remove_unreadable(text):
+    # 絵文字・特殊記号・制御文字などを除去
+    # 基本的な日本語・英数字・句読点・スペースのみ残す例
+    return re.sub(r'[^\u3040-\u30FF\u4E00-\u9FFF\uFF01-\uFF5E\u0020-\u007E。、．，・！？\n\r]', '', text)
+
 st.title("メール自動読み上げアプリ")
 
 gmail_user = st.text_area("メールアドレスを入力してください")
@@ -148,6 +154,8 @@ def speak_component(text_to_say: str):
         </div>
     """, height=40)
 
+# ...既存のコード...
+
 if gmail_user and gmail_pass:
     data = fetch_latest_mail(gmail_user, gmail_pass)
     if data is None:
@@ -164,6 +172,7 @@ if gmail_user and gmail_pass:
 
         # 読み上げ用テキスト（本文が無ければ件名だけでも）
         to_read = f"差出人: {from_}。件名: {subject}。本文: {body}" if body else f"差出人: {from_}。件名: {subject}。"
+        to_read = remove_unreadable(to_read)  # ← ここで記号除去
         speak_component(to_read)
 
         now = datetime.now()
