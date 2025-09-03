@@ -137,22 +137,20 @@ def fetch_latest_mail(user, password):
 
 def speak_component(text_to_say: str):
     """
-    iframe内でユーザー操作から発話できるように、ボタン付きのHTMLを埋め込む。
+    ページ表示時に自動で発話するHTMLを埋め込む。
     """
     safe = json.dumps(text_to_say)  # JS文字列として安全にエスケープ
     st.components.v1.html(f"""
-        <div>
-            <button onclick="
-                try {{
-                    const utter = new SpeechSynthesisUtterance({safe});
-                    window.speechSynthesis.cancel();
-                    window.speechSynthesis.speak(utter);
-                }} catch (e) {{
-                    alert('読み上げに失敗しました: ' + e);
-                }}
-            ">▶️ 読み上げる</button>
-        </div>
-    """, height=40)
+        <script>
+            try {{
+                const utter = new SpeechSynthesisUtterance({safe});
+                window.speechSynthesis.cancel();
+                window.speechSynthesis.speak(utter);
+            }} catch (e) {{
+                alert('読み上げに失敗しました: ' + e);
+            }}
+        </script>
+    """, height=0)
 
 # ...既存のコード...
 
