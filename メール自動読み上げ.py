@@ -5,11 +5,10 @@ import email
 from email.header import decode_header, make_header
 import quopri, base64, re, json
 
-
 def remove_unreadable(text):
-    # 絵文字・特殊記号・制御文字などを除去
-    # 基本的な日本語・英数字・句読点・スペースのみ残す例
-    return re.sub(r'[^\u3040-\u30FF\u4E00-\u9FFF\uFF01-\uFF5E\u0020-\u007E。、．，・！？\n\r]', '', text)
+    # 日本語・英数字・句読点・スペースのみ残す（スラッシュ等も除去）
+    return re.sub(r'[^\u3040-\u30FF\u4E00-\u9FFF\uFF10-\uFF19\uFF21-\uFF3A\uFF41-\uFF5A\u0020-\u007E。、．，・！？\n\r]', '', text)
+
 
 st.title("メール自動読み上げアプリ")
 
