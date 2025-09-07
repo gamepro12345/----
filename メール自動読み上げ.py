@@ -15,6 +15,11 @@ st.title("メール自動読み上げアプリ")
 gmail_user = st.text_area("メールアドレスを入力してください")
 gmail_pass = st.text_input("メールアドレスのアプリパスワードを入力してください", type="password")
 
+category = st.selectbox(
+    "読むメールの種類を選んでください",
+    ("すべて", "メイン", "広告")
+)
+
 def remove_unreadable(text):
     # URLを除去
     text = re.sub(r'https?://\S+|www\.\S+', '', text)
@@ -100,18 +105,23 @@ def _get_best_body(msg: email.message.Message) -> str:
         return _html_to_text(html)
     return ""
 
-def fetch_latest_mail(user, password):
+
+def fetch_latest_mail(user, password, category="広告"):
     """
-    Gmail IMAPからプロモーションカテゴリ最新1通を取得。
+    Gmail IMAPからカテゴリ最新1通を取得。
     """
     mail = None
     try:
         mail = imaplib.IMAP4_SSL('imap.gmail.com')
         mail.login(user, password)
         mail.select('inbox')
-        # Gmail拡張検索。必要なら 'UTF-8' を明示して安定させる
-        # result, data = mail.search('UTF-8', 'X-GM-RAW', 'category:promotions')
-        result, data = mail.search(None, 'X-GM-RAW', 'category:promotions')
+        # ▼カテゴリごとに検索条件を切り替え
+        if category == "すべて":
+            result, data = mail.search(None, 'ALL')
+        elif category == "メイン":
+            result, data = mail.search(None, 'X-GM-RAW', 'category:primary')
+        else:  # "広告"
+            result, data = mail.search(None, 'X-GM-RAW', 'category:promotions')
         if result != "OK":
             return None
         mail_ids = data[0].split()
@@ -161,7 +171,7 @@ def speak_component(text_to_say: str):
 # ...既存のコード...
 
 if gmail_user and gmail_pass:
-    data = fetch_latest_mail(gmail_user, gmail_pass)
+    data = fetch_latest_mail(gmail_user, gmail_pass,category)
     if data is None:
         st.write("まだメールが届いていないか、取得に失敗しました。")
     else:
