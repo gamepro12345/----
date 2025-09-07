@@ -15,6 +15,13 @@ st.title("メール自動読み上げアプリ")
 gmail_user = st.text_area("メールアドレスを入力してください")
 gmail_pass = st.text_input("メールアドレスのアプリパスワードを入力してください", type="password")
 
+def remove_unreadable(text):
+    # URLを除去
+    text = re.sub(r'https?://\S+|www\.\S+', '', text)
+    # 日本語・英数字・句読点・スペースのみ残す（記号は除去）
+    text = re.sub(r'[^0-9A-Za-z\u3040-\u30FF\u4E00-\u9FFF。、．，・！？\s\n\r]', '', text)
+    return text
+
 def _decode_mime(s):
     if s is None:
         return ""
