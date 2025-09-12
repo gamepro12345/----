@@ -198,7 +198,7 @@ if gmail_user and gmail_pass:
         st.write(f"**件名**: {subject}")
         st.write("**本文（先頭）**:")
         st.write((body[:500] + "…") if len(body) > 500 else (body or "(本文なし)"))
-
+        gmail_pass = None  # 念のため変数クリア
         # 読み上げ用テキスト（本文が無ければ件名だけでも）
         to_read = f"差出人: {from_}。件名: {subject}。本文: {body}" if body else f"差出人: {from_}。件名: {subject}。"
         to_read = remove_unreadable(to_read)  # ← ここで記号除去
