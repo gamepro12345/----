@@ -12,7 +12,7 @@ def remove_unreadable(text):
 
 st.title("メール自動読み上げアプリ")
 
-st.write("このアプリはGmailの最新メールを取得し、内容を自動で読み上げます。")
+st.write("このアプリはあなたがお使いのメールの最新メールを取得し、内容を自動で読み上げます。")
 st.write("メールアドレスとアプリパスワードを入れればOKです。")
 st.write("アプリパスワードの取得方法は[こちら](https://support.google.com/accounts/answer/185833?hl=ja)を参照してください。")
 st.write("また、カテゴリごとに最新メールを選択できます。")
