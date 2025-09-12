@@ -10,6 +10,17 @@ def remove_unreadable(text):
     return re.sub(r'[^\u3040-\u30FF\u4E00-\u9FFF\uFF10-\uFF19\uFF21-\uFF3A\uFF41-\uFF5A\u0020-\u007E。、．，・！？\n\r]', '', text)
 
 
+st.markdown("""
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@700&display=swap');
+    h1 {
+        font-family: 'Noto Sans JP', sans-serif !important;
+        color: #2c3e50;
+        letter-spacing: 2px;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
 st.title("メール自動読み上げアプリ")
 
 st.write("このアプリはあなたがお使いのメールの最新メールを取得し、内容を自動で読み上げます。")
