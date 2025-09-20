@@ -34,6 +34,53 @@ category = st.selectbox(
     "読むメールの種類を選んでください",
     ("すべて", "メイン", "広告")
 )
+def fetch_mails(user, password, category="広告", num=10):
+    """
+    Gmail IMAPからカテゴリ最新num件を取得。
+    """
+    mails = []
+    mail = None
+    try:
+        mail = imaplib.IMAP4_SSL('imap.gmail.com')
+        mail.login(user, password)
+        mail.select('inbox')
+        if category == "すべて":
+            result, data = mail.search(None, 'ALL')
+        elif category == "メイン":
+            result, data = mail.search(None, 'X-GM-RAW', 'category:primary')
+        else:
+            result, data = mail.search(None, 'X-GM-RAW', 'category:promotions')
+        if result != "OK":
+            return []
+        mail_ids = data[0].split()
+        if not mail_ids:
+            return []
+        # 最新num件のIDを取得
+        latest_ids = mail_ids[-num:]
+        for mail_id in reversed(latest_ids):
+            result, msg_data = mail.fetch(mail_id, '(RFC822)')
+            if result != "OK":
+                continue
+            raw_email = msg_data[0][1]
+            msg = email.message_from_bytes(raw_email)
+            subject = _decode_mime(msg.get("Subject"))
+            from_ = _decode_mime(msg.get("From"))
+            body = _get_best_body(msg)
+            mails.append({
+                "subject": subject,
+                "from": from_,
+                "body": body
+            })
+        return mails
+    except Exception as e:
+        st.error(f"メール取得エラー: {e}")
+        return []
+    finally:
+        try:
+            if mail is not None:
+                mail.logout()
+        except:
+            pass
 
 def remove_unreadable(text):
     # URLを除去
@@ -186,26 +233,28 @@ def speak_component(text_to_say: str):
 # ...既存のコード...
 
 if gmail_user and gmail_pass:
-    data = fetch_latest_mail(gmail_user, gmail_pass,category)
-    if data is None:
+    mails = fetch_mails(gmail_user, gmail_pass, category, num=10)
+    if not mails:
         st.write("まだメールが届いていないか、取得に失敗しました。")
-    else: 
-        # 念のため変数クリア
-        subject = data["subject"] or "(件名なし)"
-        from_ = data["from"] or "(差出人不明)"
-        body = data["body"]
+    else:
+        # 件名一覧を表示して選択
+        subjects = [f"{i+1}. {remove_unreadable(m['subject'])}" for i, m in enumerate(mails)]
+        selected = st.selectbox("読み上げるメールを選んでください", subjects)
+        idx = subjects.index(selected)
+        mail = mails[idx]
+        subject = mail["subject"] or "(件名なし)"
+        from_ = mail["from"] or "(差出人不明)"
+        body = mail["body"]
 
-        # メールアドレス部分をマスク
         from_masked = re.sub(r'<.*?>', '<***>', from_)
 
         st.write(f"**差出人**: {from_masked}")
         st.write(f"**件名**: {subject}")
         st.write("**本文（先頭）**:")
         st.write((body[:500] + "…") if len(body) > 500 else (body or "(本文なし)"))
-       
-        # 読み上げ用テキスト（本文が無ければ件名だけでも）
+
         to_read = f"差出人: {from_masked}。件名: {subject}。本文: {body}" if body else f"差出人: {from_masked}。件名: {subject}。"
-        to_read = remove_unreadable(to_read)  # ← ここで記号除去
+        to_read = remove_unreadable(to_read)
         speak_component(to_read)
 
         now = datetime.now()
