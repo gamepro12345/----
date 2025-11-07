@@ -41,7 +41,8 @@ def fetch_mails(user, password, category="広告", num=10):
     mails = []
     mail = None
     try:
-        mail = imaplib.IMAP4_SSL('imap.gmail.com')
+        imap_host = get_imap_host(user)  # 変更: ホストを決定
+        mail = imaplib.IMAP4_SSL(imap_host)
         mail.login(user, password)
         mail.select('inbox')
         if category == "すべて":
@@ -97,6 +98,23 @@ def _decode_mime(s):
         return str(make_header(decode_header(s)))
     except Exception:
         return s
+
+# 追加: メールアドレスから適切なIMAPホストを決定するヘルパー
+def get_imap_host(user_email: str) -> str:
+    """
+    user_email のドメインに応じてIMAPホストを返す。
+    - ドメインが 'gmail.com' を末尾に含む場合は Gmail の公式ホストを使う（test.6765884.gmail.com 等に対応）
+    - それ以外は簡易的に 'imap.<domain>' を返す（必要なら設定UIを追加してください）
+    """
+    try:
+        domain = user_email.split('@')[-1].lower()
+    except Exception:
+        domain = ""
+    if domain.endswith("gmail.com"):
+        return "imap.gmail.com"
+    if domain:
+        return f"imap.{domain}"
+    return "imap.gmail.com"
 
 def _html_to_text(html: str) -> str:
     # 超簡易: タグ除去 & 余分な空白整形（必要ならBeautifulSoupに置換可）
@@ -174,7 +192,8 @@ def fetch_latest_mail(user, password, category="広告"):
     """
     mail = None
     try:
-        mail = imaplib.IMAP4_SSL('imap.gmail.com')
+        imap_host = get_imap_host(user)  # 変更: ホストを決定
+        mail = imaplib.IMAP4_SSL(imap_host)
         mail.login(user, password)
         mail.select('inbox')
         # ▼カテゴリごとに検索条件を切り替え
@@ -229,8 +248,6 @@ def speak_component(text_to_say: str):
             }}
         </script>
     """, height=0)
-
-# ...既存のコード...
 
 if gmail_user and gmail_pass:
     mails = fetch_mails(gmail_user, gmail_pass, category, num=10)
