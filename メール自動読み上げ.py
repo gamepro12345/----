@@ -76,14 +76,9 @@ else:
 col_title, col_img = st.columns([3, 1])
 with col_title:
     st.title("メール自動読み上げアプリ")
-with col_img:
+
     # unnamed.jpg をこのスクリプトと同じフォルダで探す
-    img_path = os.path.join(os.path.dirname(__file__), "unnamed.jpg") if "__file__" in globals() else "unnamed.jpg"
-    if os.path.exists(img_path):
-        st.image(img_path, width=140)
-    else:
-        # 画像が無ければ空白を維持（必要なら代替テキストを表示）
-        st.write("")
+   
 
 st.write("このアプリはあなたがお使いのメールの最新メールを取得し、内容を自動で読み上げます。")
 st.write("メールアドレスとアプリパスワードを入れればOKです。")
