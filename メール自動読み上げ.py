@@ -22,6 +22,36 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+# 追加: ページ全体の背景に指定ファイルを設定（存在すれば base64 埋め込みで確実に表示）
+bg_name = "Gemini_Generated_Image_1ync461ync461ync.jpg"
+bg_path = os.path.join(os.path.dirname(__file__), bg_name) if "__file__" in globals() else bg_name
+if os.path.exists(bg_path):
+    try:
+        with open(bg_path, "rb") as _f:
+            _b64 = base64.b64encode(_f.read()).decode()
+        st.markdown(f"""
+            <style>
+            .stApp {{
+                background-image: url("data:image/jpeg;base64,{_b64}");
+                background-size: cover;
+                background-repeat: no-repeat;
+                background-position: center;
+                backdrop-filter: none;
+            }}
+            /* 必要に応じてコンテンツの可読性向上のためにオーバーレイを追加 */
+            .stApp::before {{
+                content: "";
+                position: fixed;
+                inset: 0;
+                background: rgba(255,255,255,0.06);
+                pointer-events: none;
+            }}
+            </style>
+        """, unsafe_allow_html=True)
+    except Exception:
+        # 画像読み込みで問題があってもアプリは続行
+        pass
+
 # 変更: タイトルと画像を横並びで表示（元の st.title(...) と不要な st. 行を置換）
 col_title, col_img = st.columns([3, 1])
 with col_title:
