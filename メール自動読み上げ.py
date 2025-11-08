@@ -22,35 +22,55 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 追加: ページ全体の背景に指定ファイルを設定（存在すれば base64 埋め込みで確実に表示）
+# 変更: 背景適用処理を強化（拡張子判定、複数セレクタ、!important）
 bg_name = "Gemini_Generated_Image_1ync461ync461ync.jpg"
 bg_path = os.path.join(os.path.dirname(__file__), bg_name) if "__file__" in globals() else bg_name
 if os.path.exists(bg_path):
     try:
+        # 拡張子から MIME を決定
+        ext = os.path.splitext(bg_path)[1].lower().lstrip('.')
+        mime = "jpeg" if ext in ("jpg", "jpeg") else ("png" if ext == "png" else ("webp" if ext=="webp" else "jpeg"))
         with open(bg_path, "rb") as _f:
             _b64 = base64.b64encode(_f.read()).decode()
+        # Streamlit のさまざまなコンテナに効くように複数セレクタに適用し、重要度を高める
         st.markdown(f"""
             <style>
-            .stApp {{
-                background-image: url("data:image/jpeg;base64,{_b64}");
-                background-size: cover;
-                background-repeat: no-repeat;
-                background-position: center;
-                backdrop-filter: none;
+            body, .stApp, .main, .block-container, .css-1d391kg {{
+                background-image: url("data:image/{mime};base64,{_b64}") !important;
+                background-size: cover !important;
+                background-repeat: no-repeat !important;
+                background-position: center center !important;
+                background-attachment: fixed !important;
             }}
-            /* 必要に応じてコンテンツの可読性向上のためにオーバーレイを追加 */
+            /* コンテンツの読みやすさ確保 */
+            .stApp .block-container {{
+                background: rgba(255,255,255,0.85) !important;
+                padding: 1rem !important;
+                border-radius: 8px !important;
+            }}
+            /* 軽いオーバーレイ（必要に応じて透明度を調整） */
             .stApp::before {{
                 content: "";
                 position: fixed;
                 inset: 0;
-                background: rgba(255,255,255,0.06);
+                background: rgba(255,255,255,0.02);
                 pointer-events: none;
+                z-index: 0;
+            }}
+            /* コンテンツを前面に出す */
+            .stApp > .main, .stApp .block-container {{
+                position: relative;
+                z-index: 1;
             }}
             </style>
         """, unsafe_allow_html=True)
     except Exception:
-        # 画像読み込みで問題があってもアプリは続行
+        # 画像読み込みで問題があってもアプリは続行（デバッグ用に st.warning を一時的に有効化して確認可）
         pass
+else:
+    # ファイルが見つからない場合はパスや拡張子を確認してください
+    # st.warning(f"背景画像が見つかりません: {bg_path}")
+    pass
 
 # 変更: タイトルと画像を横並びで表示（元の st.title(...) と不要な st. 行を置換）
 col_title, col_img = st.columns([3, 1])
