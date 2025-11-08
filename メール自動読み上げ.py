@@ -23,7 +23,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # 変更: 背景適用処理を強化（拡張子判定、複数セレクタ、!important）
-bg_name = "Gemini_Generated_Image_1ync461ync461ync.jpg"
+bg_name = "Gemini_Generated_Image_1ync461ync461ync.png"
 bg_path = os.path.join(os.path.dirname(__file__), bg_name) if "__file__" in globals() else bg_name
 if os.path.exists(bg_path):
     try:
