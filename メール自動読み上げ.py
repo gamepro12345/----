@@ -42,18 +42,18 @@ if os.path.exists(bg_path):
                 background-position: center center !important;
                 background-attachment: fixed !important;
             }}
-            /* コンテンツの読みやすさ確保 */
+            /* コンテンツの読みやすさ確保: 背景の白ボックスを透明に（白い帯を消す） */
             .stApp .block-container {{
-                background: rgba(255,255,255,0.85) !important;
+                background: transparent !important;
                 padding: 1rem !important;
                 border-radius: 8px !important;
             }}
-            /* 軽いオーバーレイ（必要に応じて透明度を調整） */
+            /* オーバーレイを無効化（透明に） */
             .stApp::before {{
                 content: "";
                 position: fixed;
                 inset: 0;
-                background: rgba(255,255,255,0.02);
+                background: rgba(255,255,255,0) !important;
                 pointer-events: none;
                 z-index: 0;
             }}
