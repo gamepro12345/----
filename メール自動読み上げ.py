@@ -235,17 +235,56 @@ def fetch_latest_mail(user, password, category="広告"):
 def speak_component(text_to_say: str):
     """
     ページ表示時に自動で発話するHTMLを埋め込む。
+    iOS向けに autoplay + playsinline を持つ隠し audio を先に再生し、
+    それをトリガーとして SpeechSynthesis を呼び出す試みを行います。
     """
     safe = json.dumps(text_to_say)  # JS文字列として安全にエスケープ
+
+    # 簡易サイレントWAV（非常に短いヘッダのみ）を data URI として使う。
+    # 注意: ブラウザによっては完全な自動再生を許可しない場合がありますが、
+    # playsinline/autoplay を指定することでiOSでの成功率を上げます。
+    silent_wav = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA="
+
     st.components.v1.html(f"""
         <script>
+        (async function(){{
             try {{
-                const utter = new SpeechSynthesisUtterance({safe});
-                window.speechSynthesis.cancel();
-                window.speechSynthesis.speak(utter);
+                const text = {safe};
+                // hidden audio element to help unlock autoplay on iOS
+                const audio = document.createElement('audio');
+                audio.src = "{silent_wav}";
+                audio.autoplay = true;
+                audio.playsInline = true;
+                audio.muted = true;
+                audio.style.width = "1px";
+                audio.style.height = "1px";
+                audio.style.opacity = "0";
+                audio.style.position = "fixed";
+                audio.style.left = "-9999px";
+                document.body.appendChild(audio);
+
+                // Try to play the audio (may return a Promise)
+                try {{
+                    await audio.play().catch(()=>{{ /* ignore play rejection */ }});
+                }} catch (e) {{
+                    // ignore
+                }}
+
+                // Wait a short moment for audio system to initialize, then speak
+                setTimeout(function() {{
+                    try {{
+                        const utter = new SpeechSynthesisUtterance(text);
+                        window.speechSynthesis.cancel();
+                        window.speechSynthesis.speak(utter);
+                    }} catch (e) {{
+                        alert('読み上げに失敗しました: ' + e);
+                    }}
+                }}, 200);
+
             }} catch (e) {{
                 alert('読み上げに失敗しました: ' + e);
             }}
+        }})();
         </script>
     """, height=0)
 
