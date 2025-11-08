@@ -241,8 +241,6 @@ def speak_component(text_to_say: str):
     safe = json.dumps(text_to_say)  # JS文字列として安全にエスケープ
 
     # 簡易サイレントWAV（非常に短いヘッダのみ）を data URI として使う。
-    # 注意: ブラウザによっては完全な自動再生を許可しない場合がありますが、
-    # playsinline/autoplay を指定することでiOSでの成功率を上げます。
     silent_wav = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA="
 
     st.components.v1.html(f"""
@@ -250,36 +248,98 @@ def speak_component(text_to_say: str):
         (async function(){{
             try {{
                 const text = {safe};
-                // hidden audio element to help unlock autoplay on iOS
-                const audio = document.createElement('audio');
-                audio.src = "{silent_wav}";
-                audio.autoplay = true;
-                audio.playsInline = true;
-                audio.muted = true;
-                audio.style.width = "1px";
-                audio.style.height = "1px";
-                audio.style.opacity = "0";
-                audio.style.position = "fixed";
-                audio.style.left = "-9999px";
-                document.body.appendChild(audio);
+                const silent = "{silent_wav}";
 
-                // Try to play the audio (may return a Promise)
-                try {{
-                    await audio.play().catch(()=>{{ /* ignore play rejection */ }});
-                }} catch (e) {{
-                    // ignore
+                // document.body が null の場合に備えて待機・再試行してから appendChild するユーティリティ
+                function waitForBody(timeout = 2000) {{
+                    return new Promise((resolve) => {{
+                        if (document && document.body) {{
+                            return resolve(document.body);
+                        }}
+                        let resolved = false;
+                        const onReady = () => {{
+                            if (document && document.body) {{
+                                cleanup();
+                                resolved = true;
+                                resolve(document.body);
+                            }}
+                        }};
+                        const cleanup = () => {{
+                            document.removeEventListener('DOMContentLoaded', onReady);
+                            document.removeEventListener('readystatechange', onReady);
+                        }};
+                        document.addEventListener('DOMContentLoaded', onReady);
+                        document.addEventListener('readystatechange', onReady);
+
+                        // ポーリングのフォールバック
+                        let waited = 0;
+                        const iv = setInterval(() => {{
+                            if (document && document.body) {{
+                                clearInterval(iv);
+                                cleanup();
+                                if (!resolved) {{
+                                    resolved = true;
+                                    resolve(document.body);
+                                }}
+                            }}
+                            waited += 100;
+                            if (waited > timeout) {{
+                                clearInterval(iv);
+                                cleanup();
+                                // resolve null でも呼ぶ（呼び出し側でフォールバック）
+                                if (!resolved) {{
+                                    resolved = true;
+                                    resolve(null);
+                                }}
+                            }}
+                        }}, 100);
+                    }});
                 }}
 
-                // Wait a short moment for audio system to initialize, then speak
-                setTimeout(function() {{
+                let body = await waitForBody();
+
+                // body が取れなければ documentElement にフォールバック
+                const container = body || document.documentElement || document;
+
+                try {{
+                    const audio = document.createElement('audio');
+                    audio.src = silent;
+                    audio.autoplay = true;
+                    audio.playsInline = true;
+                    audio.muted = true;
+                    audio.style.width = "1px";
+                    audio.style.height = "1px";
+                    audio.style.opacity = "0";
+                    audio.style.position = "fixed";
+                    audio.style.left = "-9999px";
+                    // appendChild が例外を投げる可能性を try/catch で保護
                     try {{
-                        const utter = new SpeechSynthesisUtterance(text);
-                        window.speechSynthesis.cancel();
-                        window.speechSynthesis.speak(utter);
+                        container.appendChild(audio);
                     }} catch (e) {{
-                        alert('読み上げに失敗しました: ' + e);
+                        // append に失敗しても続行
                     }}
-                }}, 200);
+
+                    // 再生を試みる（Promise拒否は無視）
+                    try {{
+                        await audio.play().catch(()=>{{ /* ignore */ }});
+                    }} catch (e) {{
+                        // ignore
+                    }}
+
+                    // 少し待ってから読み上げ
+                    setTimeout(function() {{
+                        try {{
+                            const utter = new SpeechSynthesisUtterance(text);
+                            window.speechSynthesis.cancel();
+                            window.speechSynthesis.speak(utter);
+                        }} catch (e) {{
+                            alert('読み上げに失敗しました: ' + e);
+                        }}
+                    }}, 200);
+
+                }} catch (e) {{
+                    alert('読み上げに失敗しました: ' + e);
+                }}
 
             }} catch (e) {{
                 alert('読み上げに失敗しました: ' + e);
