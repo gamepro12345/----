@@ -234,74 +234,66 @@ def fetch_latest_mail(user, password, category="広告"):
 
 def speak_component(text_to_say: str):
     """
-    ページ表示時に自動で発話するHTMLを埋め込む。
-    iOS向けに autoplay + playsinline を持つ隠し audio を先に再生し、
-    それをトリガーとして SpeechSynthesis を呼び出す試みを行います。
+    ページに再生ボタンを追加し、自動で押す試みを行う。
+    - 可視ボタン（ユーザーが押せる）と隠しボタン（自動クリック対象）を作る
+    - どちらのクリックでも短い音声を再生してから SpeechSynthesis を行う
+    - 自動クリックは element.click(), MouseEvent dispatch, 繰り返し試行 を行う
     """
     safe = json.dumps(text_to_say)  # JS文字列として安全にエスケープ
 
-    # 簡易サイレントWAV（非常に短いヘッダのみ）を data URI として使う。
+    # 簡易サイレントWAV（短いヘッダのみ）を data URI として使う
     silent_wav = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA="
 
     st.components.v1.html(f"""
         <script>
         (async function(){{
-            try {{
-                const text = {safe};
-                const silent = "{silent_wav}";
+            const text = {safe};
+            const silent = "{silent_wav}";
 
-                // document.body が null の場合に備えて待機・再試行してから appendChild するユーティリティ
-                function waitForBody(timeout = 2000) {{
-                    return new Promise((resolve) => {{
+            function waitForBody(timeout = 2000) {{
+                return new Promise((resolve) => {{
+                    if (document && document.body) return resolve(document.body);
+                    let resolved = false;
+                    const onReady = () => {{
                         if (document && document.body) {{
-                            return resolve(document.body);
+                            cleanup();
+                            resolved = true;
+                            resolve(document.body);
                         }}
-                        let resolved = false;
-                        const onReady = () => {{
-                            if (document && document.body) {{
-                                cleanup();
+                    }};
+                    const cleanup = () => {{
+                        document.removeEventListener('DOMContentLoaded', onReady);
+                        document.removeEventListener('readystatechange', onReady);
+                    }};
+                    document.addEventListener('DOMContentLoaded', onReady);
+                    document.addEventListener('readystatechange', onReady);
+
+                    let waited = 0;
+                    const iv = setInterval(() => {{
+                        if (document && document.body) {{
+                            clearInterval(iv);
+                            cleanup();
+                            if (!resolved) {{
                                 resolved = true;
                                 resolve(document.body);
                             }}
-                        }};
-                        const cleanup = () => {{
-                            document.removeEventListener('DOMContentLoaded', onReady);
-                            document.removeEventListener('readystatechange', onReady);
-                        }};
-                        document.addEventListener('DOMContentLoaded', onReady);
-                        document.addEventListener('readystatechange', onReady);
-
-                        // ポーリングのフォールバック
-                        let waited = 0;
-                        const iv = setInterval(() => {{
-                            if (document && document.body) {{
-                                clearInterval(iv);
-                                cleanup();
-                                if (!resolved) {{
-                                    resolved = true;
-                                    resolve(document.body);
-                                }}
+                        }}
+                        waited += 100;
+                        if (waited > timeout) {{
+                            clearInterval(iv);
+                            cleanup();
+                            if (!resolved) {{
+                                resolved = true;
+                                resolve(null);
                             }}
-                            waited += 100;
-                            if (waited > timeout) {{
-                                clearInterval(iv);
-                                cleanup();
-                                // resolve null でも呼ぶ（呼び出し側でフォールバック）
-                                if (!resolved) {{
-                                    resolved = true;
-                                    resolve(null);
-                                }}
-                            }}
-                        }}, 100);
-                    }});
-                }}
+                        }}
+                    }}, 100);
+                }});
+            }}
 
-                let body = await waitForBody();
-
-                // body が取れなければ documentElement にフォールバック
-                const container = body || document.documentElement || document;
-
+            function doSpeakOnce() {{
                 try {{
+                    // 無音音声を再生してオーディオをアンロック
                     const audio = document.createElement('audio');
                     audio.src = silent;
                     audio.autoplay = true;
@@ -312,37 +304,86 @@ def speak_component(text_to_say: str):
                     audio.style.opacity = "0";
                     audio.style.position = "fixed";
                     audio.style.left = "-9999px";
-                    // appendChild が例外を投げる可能性を try/catch で保護
-                    try {{
-                        container.appendChild(audio);
-                    }} catch (e) {{
-                        // append に失敗しても続行
-                    }}
+                    // append は安全に行う
+                    try {{ (document.body || document.documentElement || document).appendChild(audio); }} catch(e) {{ /* ignore */ }}
 
-                    // 再生を試みる（Promise拒否は無視）
-                    try {{
-                        await audio.play().catch(()=>{{ /* ignore */ }});
-                    }} catch (e) {{
-                        // ignore
-                    }}
+                    // 再生試行（Promise拒否は無視）
+                    try {{ audio.play().catch(()=>{{}}); }} catch(e) {{ }}
 
-                    // 少し待ってから読み上げ
+                    // 少し待ってからSpeechSynthesis
                     setTimeout(function() {{
                         try {{
                             const utter = new SpeechSynthesisUtterance(text);
                             window.speechSynthesis.cancel();
                             window.speechSynthesis.speak(utter);
                         }} catch (e) {{
-                            alert('読み上げに失敗しました: ' + e);
+                            console.warn('speak failed', e);
                         }}
                     }}, 200);
 
                 }} catch (e) {{
-                    alert('読み上げに失敗しました: ' + e);
+                    console.warn('doSpeakOnce error', e);
                 }}
+            }}
 
+            // ボタン作成
+            try {{
+                const body = await waitForBody();
+                const container = body || document.documentElement || document;
+
+                // 可視ボタン（ユーザーが押せる）
+                const btn = document.createElement('button');
+                btn.id = 'streamlit_speak_button';
+                btn.textContent = '読み上げ再生';
+                btn.style.position = 'fixed';
+                btn.style.bottom = '12px';
+                btn.style.right = '12px';
+                btn.style.zIndex = 2147483647;
+                btn.style.padding = '8px 12px';
+                btn.style.borderRadius = '6px';
+                btn.style.background = '#4CAF50';
+                btn.style.color = '#fff';
+                btn.style.border = 'none';
+                btn.style.boxShadow = '0 2px 6px rgba(0,0,0,0.2)';
+                btn.style.cursor = 'pointer';
+
+                // 隠しボタン（自動クリック用）
+                const hidden = document.createElement('button');
+                hidden.id = 'streamlit_speak_button_hidden';
+                hidden.style.position = 'fixed';
+                hidden.style.left = '-9999px';
+                hidden.style.opacity = '0';
+                hidden.style.width = '1px';
+                hidden.style.height = '1px';
+
+                const handler = function(e) {{
+                    e && e.preventDefault && e.preventDefault();
+                    doSpeakOnce();
+                }};
+
+                btn.addEventListener('click', handler);
+                hidden.addEventListener('click', handler);
+
+                try {{ container.appendChild(btn); }} catch(e) {{ /* ignore */ }}
+                try {{ container.appendChild(hidden); }} catch(e) {{ /* ignore */ }}
+
+                // 自動クリックを複数手法で試す
+                const tryAutoClick = () => {{
+                    try {{ hidden.click(); }} catch(e){{}}
+                    try {{ hidden.dispatchEvent(new MouseEvent('click', {{bubbles:true, cancelable:true, view:window}})); }} catch(e){{}}
+                    try {{ btn.click(); }} catch(e){{}}
+                }};
+
+                // 即時、アニメフレーム、タイマーで繰り返し試行（計1秒程度）
+                tryAutoClick();
+                requestAnimationFrame(() => tryAutoClick());
+                setTimeout(() => tryAutoClick(), 50);
+                setTimeout(() => tryAutoClick(), 200);
+                setTimeout(() => tryAutoClick(), 500);
+
+                // もし自動クリックで動作しなければ、ボタンは残してユーザーが押せるようにする
             }} catch (e) {{
-                alert('読み上げに失敗しました: ' + e);
+                console.warn('speak_component init error', e);
             }}
         }})();
         </script>
