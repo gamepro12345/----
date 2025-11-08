@@ -244,6 +244,7 @@ def speak_component(text_to_say: str):
     # 簡易サイレントWAV（短いヘッダのみ）を data URI として使う
     silent_wav = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA="
 
+    # 変更: height を 0 -> 140 にしてボタンを表示可能にする
     st.components.v1.html(f"""
         <script>
         (async function(){{
@@ -335,10 +336,9 @@ def speak_component(text_to_say: str):
                 const btn = document.createElement('button');
                 btn.id = 'streamlit_speak_button';
                 btn.textContent = '読み上げ再生';
-                btn.style.position = 'fixed';
-                btn.style.bottom = '12px';
-                btn.style.right = '12px';
-                btn.style.zIndex = 2147483647;
+                btn.style.position = 'relative';
+                btn.style.display = 'inline-block';
+                btn.style.margin = '8px';
                 btn.style.padding = '8px 12px';
                 btn.style.borderRadius = '6px';
                 btn.style.background = '#4CAF50';
@@ -387,7 +387,7 @@ def speak_component(text_to_say: str):
             }}
         }})();
         </script>
-    """, height=0)
+    """, height=140)
 
 if gmail_user and gmail_pass:
     mails = fetch_mails(gmail_user, gmail_pass, category, num=10)
