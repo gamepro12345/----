@@ -6,6 +6,7 @@ import email
 from email.header import decode_header, make_header
 import quopri, base64, re, json
 import ssl
+import time
 
 def remove_unreadable(text):
     # 日本語・英数字・句読点・スペースのみ残す（スラッシュ等も除去）
@@ -105,62 +106,97 @@ else:
 def fetch_mails(user, password, category="広告", num=10):
     """
     Gmail IMAPからカテゴリ最新num件を取得。
+    Streamlit Cloud 対応: リトライロジック追加
     """
     mails = []
     mail = None
-    try:
-        imap_host = get_imap_host(user)  # 変更: ホストを決定
-        
-        # iPad互換性対応：SSL コンテキストを明示的に設定
-        context = ssl.create_default_context()
-        
-        mail = imaplib.IMAP4_SSL(imap_host, timeout=15, ssl_context=context)
-        mail.login(user, password)
-        mail.select('inbox')
-        if category == "すべて":
-            result, data = mail.search(None, 'ALL')
-        elif category == "メイン":
-            result, data = mail.search(None, 'X-GM-RAW', 'category:primary')
-        else:
-            result, data = mail.search(None, 'X-GM-RAW', 'category:promotions')
-        if result != "OK":
-            return []
-        mail_ids = data[0].split()
-        if not mail_ids:
-            return []
-        # 最新num件のIDを取得
-        latest_ids = mail_ids[-num:]
-        for mail_id in reversed(latest_ids):
-            result, msg_data = mail.fetch(mail_id, '(RFC822)')
-            if result != "OK":
-                continue
-            raw_email = msg_data[0][1]
-            msg = email.message_from_bytes(raw_email)
-            subject = _decode_mime(msg.get("Subject"))
-            from_ = _decode_mime(msg.get("From"))
-            body = _get_best_body(msg)
-            mails.append({
-                "subject": subject,
-                "from": from_,
-                "body": body
-            })
-        return mails
-    except Exception as e:
-        error_msg = str(e)
-        st.error(f"メール取得エラー: {error_msg}")
-        if "AUTHENTICATIONFAILED" in error_msg or "Invalid credentials" in error_msg:
-            st.warning("⚠️  認証に失敗しました。以下をご確認ください：\n"
-                      "1. メールアドレスが正しいか\n"
-                      "2. アプリパスワードが正しいか（通常のパスワードではなく）\n"
-                      "3. iPad の日時が正確か\n"
-                      "4. Google アカウントに 2 段階認証が設定されているか")
-        return []
-    finally:
+    max_retries = 3
+    
+    for attempt in range(max_retries):
         try:
-            if mail is not None:
-                mail.logout()
-        except:
-            pass
+            imap_host = get_imap_host(user)
+            
+            # Streamlit Cloud 環境を検出
+            is_streamlit_cloud = "streamlit.app" in os.environ.get("STREAMLIT_SERVER_HEADLESS", "")
+            
+            # SSL コンテキスト設定（Streamlit Cloud 互換性対応）
+            context = ssl.create_default_context()
+            context.check_hostname = True
+            context.verify_mode = ssl.CERT_REQUIRED
+            
+            # タイムアウトを長めに設定（Streamlit Cloud のネットワーク遅延対応）
+            timeout = 20 if is_streamlit_cloud else 15
+            
+            mail = imaplib.IMAP4_SSL(imap_host, timeout=timeout, ssl_context=context)
+            mail.login(user, password)
+            
+            # 認証成功後、各操作を実行
+            mail.select('inbox')
+            if category == "すべて":
+                result, data = mail.search(None, 'ALL')
+            elif category == "メイン":
+                result, data = mail.search(None, 'X-GM-RAW', 'category:primary')
+            else:
+                result, data = mail.search(None, 'X-GM-RAW', 'category:promotions')
+            
+            if result != "OK":
+                return []
+            
+            mail_ids = data[0].split()
+            if not mail_ids:
+                return []
+            
+            # 最新num件のIDを取得
+            latest_ids = mail_ids[-num:]
+            for mail_id in reversed(latest_ids):
+                result, msg_data = mail.fetch(mail_id, '(RFC822)')
+                if result != "OK":
+                    continue
+                raw_email = msg_data[0][1]
+                msg = email.message_from_bytes(raw_email)
+                subject = _decode_mime(msg.get("Subject"))
+                from_ = _decode_mime(msg.get("From"))
+                body = _get_best_body(msg)
+                mails.append({
+                    "subject": subject,
+                    "from": from_,
+                    "body": body
+                })
+            return mails
+            
+        except Exception as e:
+            error_msg = str(e)
+            
+            # 認証エラーはリトライしない
+            if "AUTHENTICATIONFAILED" in error_msg or "Invalid credentials" in error_msg:
+                st.error(f"メール取得エラー: {error_msg}")
+                st.warning("⚠️  認証に失敗しました。以下をご確認ください：\n"
+                          "1. メールアドレスが正しいか\n"
+                          "2. アプリパスワードが正しいか（通常のパスワードではなく）\n"
+                          "3. iPad の日時が正確か\n"
+                          "4. Google アカウントに 2 段階認証が設定されているか\n\n"
+                          "📱 iOS での接続ヒント：\n"
+                          "・Safari キャッシュをクリアしてから再度アクセス\n"
+                          "・Google アカウント > セキュリティで最近のアクティビティを確認\n"
+                          "・必要に応じて Streamlit Cloud での新しいセッションを許可")
+                return []
+            
+            # ネットワークエラーはリトライ
+            if attempt < max_retries - 1:
+                wait_time = 2 ** attempt  # 指数バックオフ：2秒、4秒...
+                st.info(f"接続を再試行しています... ({attempt + 1}/{max_retries})")
+                time.sleep(wait_time)
+                continue
+            else:
+                st.error(f"メール取得エラー（複数回試行後）: {error_msg}")
+                return []
+        
+        finally:
+            try:
+                if mail is not None:
+                    mail.logout()
+            except:
+                pass
 
 def remove_unreadable(text):
     # URLを除去
