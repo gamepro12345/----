@@ -5,6 +5,7 @@ import imaplib
 import email
 from email.header import decode_header, make_header
 import quopri, base64, re, json
+import ssl
 
 def remove_unreadable(text):
     # 日本語・英数字・句読点・スペースのみ残す（スラッシュ等も除去）
@@ -109,7 +110,11 @@ def fetch_mails(user, password, category="広告", num=10):
     mail = None
     try:
         imap_host = get_imap_host(user)  # 変更: ホストを決定
-        mail = imaplib.IMAP4_SSL(imap_host)
+        
+        # iPad互換性対応：SSL コンテキストを明示的に設定
+        context = ssl.create_default_context()
+        
+        mail = imaplib.IMAP4_SSL(imap_host, timeout=15, ssl_context=context)
         mail.login(user, password)
         mail.select('inbox')
         if category == "すべて":
@@ -141,7 +146,14 @@ def fetch_mails(user, password, category="広告", num=10):
             })
         return mails
     except Exception as e:
-        st.error(f"メール取得エラー: {e}")
+        error_msg = str(e)
+        st.error(f"メール取得エラー: {error_msg}")
+        if "AUTHENTICATIONFAILED" in error_msg or "Invalid credentials" in error_msg:
+            st.warning("⚠️  認証に失敗しました。以下をご確認ください：\n"
+                      "1. メールアドレスが正しいか\n"
+                      "2. アプリパスワードが正しいか（通常のパスワードではなく）\n"
+                      "3. iPad の日時が正確か\n"
+                      "4. Google アカウントに 2 段階認証が設定されているか")
         return []
     finally:
         try:
