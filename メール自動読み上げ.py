@@ -189,7 +189,7 @@ def get_dummy_mails(category="広告", num=10):
     """
     test_mails = [
         {
-            "subject": "テストメール１：サンプルニュースレター",
+            "subject": "テストメール１",
             "from": "news@example.com <News Letter>",
             "body": "こんにちは。これはテストメールです。このメールは読み上げ機能をテストするためのダミーデータです。本文が正しく読み上げられるかご確認ください。"
         },
