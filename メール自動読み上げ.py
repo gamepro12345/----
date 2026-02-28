@@ -90,7 +90,7 @@ st.write("このアプリはあなたがお使いのメールの最新メール�
 st.write("メールアドレスとアプリパスワードを入れればOKです。")
 st.write("アプリパスワードの取得方法は[こちら](https://support.google.com/accounts/answer/185833?hl=ja)を参照してください。")
 st.write("また、カテゴリごとに最新メールを選択できます。")
-st.write("詳しい使いかたは[こちら](https://docs.google.com/document/d/1BbnkySn9h58Z_AMHtv676TVfLMTsFiBv/edit?usp=sharing&ouid=116367448831561061319&rtpof=true&sd=true)を参照してください。")
+st.write("詳しい使いかたは[こちら](https://docs.google.com/presentation/d/17qRePClaCuAvjZKkwSTKCgwLKFtrc0WP/edit?usp=sharing&ouid=115221931449731824219&rtpof=true&sd=true)を参照してください。")
 # テストモード設定
 test_mode = st.checkbox("テストモード（ダミーメールで動作確認）")
 
