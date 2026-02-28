@@ -8,6 +8,14 @@ import quopri, base64, re, json
 import ssl
 import time
 
+# マルチページサポート設定
+st.set_page_config(
+    page_title="メール自動読み上げアプリ",
+    page_icon="📧",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
 def remove_unreadable(text):
     # 日本語・英数字・句読点・スペースのみ残す（スラッシュ等も除去）
     return re.sub(r'[^\u3040-\u30FF\u4E00-\u9FFF\uFF10-\uFF19\uFF21-\uFF3A\uFF41-\uFF5A\u0020-\u007E。、．，・！？\n\r]', '', text)
